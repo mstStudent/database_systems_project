@@ -2,20 +2,39 @@
 <html>
 <head>
 <title>Page Title</title>
-<script language="javascript" src="js/jquery-1.11.3.min.js"></script>
-<script language="javascript" src="js/sqlite-parser/dist/sqlite-parser-min.js"></script>
-<script language="javascript" src="js/index.js"></script>
+<link rel="stylesheet" type="text/css" href="css/index.css">
 </head>
 <body>
-<div>
-  <textarea id="sqlQuery" rows=4 cols=50></textarea>
-  <button id=submit type=submit onclick=startParse()>submit</button>
+<div id='leftMenu'>
+     <table id='relations'>
+      <tr>
+    <td>Jill</td>
+    <td>Smith</td>
+    <td>50</td>
+  </tr>
+  <tr>
+    <td>Eve</td>
+    <td>Jackson</td>
+    <td>94</td>
+  </tr> 
+     </table>
 </div>
+<div id="middleContent">
+  <div>
+    <textarea id="sqlQuery" rows=4 cols=50></textarea>
+    <button id=submit type=submit onclick=startParse()>submit</button>
+  </div>
 
-<div>
-  <textarea id="sqlResults" rows=4 cols=50></textarea>
+  <div>
+    <textarea id="sqlResults" rows=4 cols=50></textarea>
+  </div>
 </div>
 
 
 </body>
+<footer>
+<script language="javascript" src="js/jquery-1.11.3.min.js"></script>
+<script language="javascript" src="js/sqlite-parser-min.js"></script>
+<script language="javascript" src="js/index.js"></script>
+</footer>
 </html>

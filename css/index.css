@@ -1,0 +1,8 @@
+#middleContent{
+  position: fixed;
+  margin-left: 200px;
+}
+
+#leftMenu{
+  position: absolute;
+}
