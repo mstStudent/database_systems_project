@@ -5,32 +5,33 @@
 <link rel="stylesheet" type="text/css" href="css/index.css">
 </head>
 <body>
+<div id='header'>
+   <h3 align='center'>SQL Compiler and SQL to Relational Algebra Converter</h3>
+<div>
 <div id='leftMenu'>
-     <table id='relations'>
-      <tr>
-    <td>Jill</td>
-    <td>Smith</td>
-    <td>50</td>
-  </tr>
-  <tr>
-    <td>Eve</td>
-    <td>Jackson</td>
-    <td>94</td>
-  </tr> 
-     </table>
+  <h2>Relations</h2>
+  <dl id='relationsList'>
+  </dl>
+  <button id=submit type=submit onclick=purgeRelations()>Delete All Relations</button>
 </div>
+
 <div id="middleContent">
-  <div>
-    <textarea id="sqlQuery" rows=4 cols=50></textarea>
+  <div id="sqlQuery">
+    <textarea id="sqlText" rows=4 cols=50></textarea>
     <button id=submit type=submit onclick=startParse()>submit</button>
   </div>
 
   <div>
-    <textarea id="sqlResults" rows=4 cols=50></textarea>
+    	<h2 id="sqlResults"></h2>
   </div>
 </div>
 
-
+<div id='rightMenu'>
+  <h2>Views</h2>
+  <dl id='viewsList'>
+  </dl>
+  <button id=submit type=submit onclick=purgeViews()>Delete All Views</button>
+</div>
 </body>
 <footer>
 <script language="javascript" src="js/jquery-1.11.3.min.js"></script>

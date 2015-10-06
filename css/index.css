@@ -1,8 +1,18 @@
 #middleContent{
-  position: fixed;
+  position: absolute;
   margin-left: 200px;
+  margin-right: 200px;
 }
 
 #leftMenu{
   position: absolute;
+}
+
+#rightMenu{
+  right: 0;
+  position: absolute;
+}
+
+#sqlQuery{
+  margin-bottom: 50px;
 }
