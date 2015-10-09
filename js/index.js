@@ -82,6 +82,7 @@ City varchar(255)
 
 SELECT CustomerName,City 
 FROM Customers;
+
 SELECT * FROM Customers;
 
 UPDATE Customers
@@ -153,8 +154,41 @@ var purgeRelations = function(){
     //updateLeft();
 }
 
+var checkWithSqliteParser(query){
+    var checkSQL = parseSQL(query);
+    
+    if(checkSQL.statement.length > 1){
+      console.log("Do things for errors: ", query);
+      return;
+    }
+    
+    queryCheck = checkSQL.statement[0];
+      if(queryCheck.name == 'SyntaxError'){
+        console.log("Do things for errors: ", queryCheck);
+      	try{
+      	    console.log("Pass this query to ");
+      	}
+      	catch(error){
+      	  console.log("Do things for errors: ", error);
+      	}
+      		
+      }
+      else if(queryCheck.variant != 'select'){
+      	console.log("Do things for tables / views");
+      }
+      else{
+      	console.log("Pass this query to ");
+      }
+    }
+}
+
 var startParse = function(){ 
-    var re = parseSQL($("#sqlText").val());
+    var query = $("#sqlText").val();
+    
+    // Remove the ; from the sql statement.
+    if(query.slice(-1) == ';'){
+    	query = query.slice(0,-1)
+    }
     
     var test = parser.parse($("#sqlText").val());
     /*
