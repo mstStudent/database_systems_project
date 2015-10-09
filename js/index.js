@@ -154,7 +154,7 @@ var purgeRelations = function(){
     //updateLeft();
 }
 
-var checkWithSqliteParser(query){
+var checkWithSqliteParser = function(query){
     var checkSQL = parseSQL(query);
     
     if(checkSQL.statement.length > 1){
@@ -179,7 +179,6 @@ var checkWithSqliteParser(query){
       else{
       	console.log("Pass this query to ");
       }
-    }
 }
 
 var startParse = function(){ 
