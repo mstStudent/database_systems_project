@@ -17,7 +17,9 @@
 
 <div id="middleContent">
   <div id="sqlQuery">
-    <textarea id="sqlText" rows=4 cols=50></textarea>
+    <textarea id="sqlText" rows=4 cols=50>SELECT S.sname
+FROM Sailors AS S, Reserves AS R
+WHERE S.sid=R.sid AND R.bid=103</textarea>
     <button id=submit type=submit onclick=startParse()>submit</button>
   </div>
 
@@ -34,8 +36,18 @@
 </div>
 </body>
 <footer>
+
+<!--
+  Since I'm not including entire repos that I got some of my imported files I'll list the location of where
+     I got the file(s) from.
+ -->
+<!-- Got the jquery file directly from the download link at https://jquery.com/download/ -->
 <script language="javascript" src="js/jquery-1.11.3.min.js"></script>
+<!-- Created By codeschool: Main Code from https://github.com/codeschool/sqlite-parser -->
 <script language="javascript" src="js/sqlite-parser-min.js"></script>
+<!-- Created By camilojd: Main Code from https://github.com/camilojd/sequeljs-->
+<script language="javascript" src="js/parser/SqlParser.js"></script>
+<!-- My own scripts -->
 <script language="javascript" src="js/index.js"></script>
 </footer>
 </html>

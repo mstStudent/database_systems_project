@@ -11,35 +11,35 @@ WHERE S.sid=R.sid AND R.bid=103
 
 SELECT S.sname
 FROM Sailors AS S, Reserves AS R, Boats AS B
-WHERE S.sid=R.sid AND R.bid=B.bid AND B.color=’red’
+WHERE S.sid=R.sid AND R.bid=B.bid AND B.color='red'
 
 SELECT sname
 FROM Sailors, Boats, Reserves
-WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color=’red’
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='red'
 UNION
 SELECT sname
 FROM Sailors, Boats, Reserves
-WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color=’green’
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='green'
 
 SELECT S.sname
 FROM Sailors AS S, Reserves AS R
-WHERE R.sid = S.sid AND R.bid = 100 AND S.rating > 5 AND R.day = ‘8/9/09’
+WHERE R.sid = S.sid AND R.bid = 100 AND S.rating > 5 AND R.day = '8/9/09'
 
 SELECT sname
 FROM Sailors, Boats, Reserves
-WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color=’red’
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='red'
 INTERSECT
 SELECT sname
 FROM Sailors, Boats, Reserves
-WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color=’green’
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='green'
 
 SELECT S.sid
 FROM Sailors AS S, Reserves AS R, Boats AS B
-WHERE S.sid=R.sid AND R.bid=B.bid AND B.color=‘red’
+WHERE S.sid=R.sid AND R.bid=B.bid AND B.color='red'
 EXCEPT
 SELECT S2.sid
 FROM Sailors AS S2, Reserves AS R2, Boats AS B2
-WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B.2color=‘green’
+WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B.2color='green'
 
 SELECT S.sname
 FROM Sailors AS S
@@ -51,11 +51,11 @@ SELECT S.sname
 FROM Sailors AS S
 WHERE S.sid IN ((SELECT R.sid
 		FROM Reserve AS R, Boats AS B
-		WHERE R.bid = B.bid AND B.color = ‘red’)
+		WHERE R.bid = B.bid AND B.color = 'red')
 		INTERSECT
 		(SELECT R2.sid
 		FROM Reserve AS R2, Boats AS B2
-		WHERE R2.bid = B2.bid AND B2.color = ‘green’))
+		WHERE R2.bid = B2.bid AND B2.color = 'green'))
 
 */
 
@@ -80,7 +80,8 @@ Address varchar(255),
 City varchar(255)
 );
 
-SELECT CustomerName,City FROM Customers;
+SELECT CustomerName,City 
+FROM Customers;
 SELECT * FROM Customers;
 
 UPDATE Customers
@@ -110,6 +111,10 @@ var relations = [
 		    ];
 		    
 var views = [];
+
+var project = {action: 'project', symbol: '&Pi;'};
+
+
 
 // ONLY FOR LEFT & RIGHT LIST or ( Relations and Views List )
 var putInHTMLList = function(relation){
@@ -150,6 +155,9 @@ var purgeRelations = function(){
 
 var startParse = function(){ 
     var re = parseSQL($("#sqlText").val());
+    
+    var test = parser.parse($("#sqlText").val());
+    /*
     $.each(re.statement, function(index, statement){
 	console.log("ble: ", statement);
 	switch(statement.variant){
@@ -164,7 +172,7 @@ var startParse = function(){
 			}
 			break;
 		case 'select':
-			handleSelect(statement);
+			handleQuery(statement);
 		default:
 			console.log(statement.variant);
 	};
@@ -172,6 +180,7 @@ var startParse = function(){
     
     //console.log(re);
     //$("#sqlResults").val(JSON.stringify(re));
+    */
 }
 
 var parseSQL = function (string){
@@ -236,33 +245,59 @@ var handleCreateView = function (statement) {
 	views.push(template);
 
 }
-//  $("#sqlResults").val(JSON.stringify(re));
-var handleSelect = function(statement){
-	var select = statement.result;
-	var from = statement.from;
-	var where = statement.where;
-	
-	var project = '&Pi; ';
-	var sel = '&sigma;';
-	var overall = '';
-	
-	
+
+var parseLeft = function(left){
+	console.log("Left: ", left);
+}
+
+var parseRight = function(right){
+	console.log("Right: ", right);
+}
+
+
+var parseSelect = function(select){
+	curProject = {action: 'project', symbol: '&Pi;'};
+
 	$.each(select, function(index, item){
-		project = project + item.name.sub();
+		project["column "+index] = item.name.sub();
 	});
 	
+	return project;
+
+}
+
+var parseFrom = function(from){
+	var relationSelect = {action: 'select', symbol: '&sigma;'};
+	
+	
+	
+}
+
+
+var handleQuery = function(statement){
+	var select = parseSelect(statement.result);
+	var from = parseFrom(statement.from);
+	var where = statement.where;
+	
+	var sel = '&sigma;';
+	var overall = '';
+/*
 	$.each(where, function(index, item){
 	   $.each(item.left, function(index, leftside){
-	   
-	   }
+	   	parseLeft(leftside)
+	   })
 	   sel = sel + ' AND '
-	   $.each(item.right, function(index, leftside){
-	   
-	   }
-	}
+	   $.each(item.right, function(index, rightside){
+	   	parseRight(rightside);
+	   })
+	})
 	
+	*/
 	
-	$("#sqlResults").html(where);
+	$.each(select, function(index, item){
+		index=='action'? null: overall += item;
+	});
+	$("#sqlResults").html(overall);
 	
 	console.log(statement);
 }
