@@ -113,11 +113,25 @@ var relations = [
 		    
 var views = [];
 
-var project = {action: 'project', symbol: '&Pi;'};
+var relationalAlgebra = null;
+
+/*   Help make there errors more friendly for printing    */
+var parseSQL = function (string) {
+    re = null;
+    sqliteParser(string, function (error, results) {
+        if (error) {
+            re = error;
+            $("#sqlResults").val(JSON.stringify(re));
+        }
+        else {
+            re = results;
+        }
+    });
+    return re;
+}
 
 
-
-// ONLY FOR LEFT & RIGHT LIST or ( Relations and Views List )
+// ONLY FOR LEFT & RIGHT LIST ( Relations and Views List )
 var putInHTMLList = function(relation){
 	var dt = $('<dt/>')
 		.text(relation.table);
@@ -154,80 +168,142 @@ var purgeRelations = function(){
     //updateLeft();
 }
 
+var convertToRelationalAlgebra = function (sqlJson) {
+    console.log(sqlJson);
+    switch (sqlJson.nodeType) {
+        case 'Main':
+            return convertToRelationalAlgebra(sqlJson.value[0])
+            break;
+        case 'Select':
+            var columns = {};
+            $.each(sqlJson.columns, function (index, column) {
+                columns[index] = convertToRelationalAlgebra(column)
+            })
+            return columns;
+            break;
+        case 'Column':
+            return convertToRelationalAlgebra(sqlJson.value);
+            break;
+        case 'AndCondition':
+            return convertToRelationalAlgebra(sqlJson.value[0]);
+            break;
+        case 'Condition':
+            return convertToRelationalAlgebra(sqlJson.value[0]);
+            break;
+        case 'Term':
+            return {selCondition: sqlJsonvalue}
+            break;
+        default:
+            console.log("Forgot: ", sqlJson);
+    }
+
+}
+
+
+var checkWithParser = function (sql) {
+    var sqlJson = parser.parse(sql);
+    var relationJson = convertToRelationalAlgebra(sqlJson);
+    return relationJson;
+}
+
+/* The main validator for all queries, the main reason is that sqliteParser doesn't reconize intersect but sqlparser does */
+var checkWithSqlParser = function (query) {
+    try {
+        return {
+            action: 'parsed',
+            message: 'Command Yays!',
+            type: 'table',
+            results: checkWithParser(query)
+        }
+    } catch (error) {
+        return {
+            action: 'error',
+            type: 'Syntax Issue',
+            message: "There is a syntax issue."
+        };
+    }
+}
+
+
+/*  The first sql validator and the vaildator that allows to handle relations and views */
 var checkWithSqliteParser = function(query){
     var checkSQL = parseSQL(query);
-    
-    if(checkSQL.statement.length > 1){
-      console.log("Do things for errors: ", query);
-      return;
+
+    // There are two possible reasons for the SyntaxError either it's really an error or intersect is in the query somewhere.
+    if (checkSQL.name == 'SyntaxError') {
+        if (query.toLowerCase().indexOf("intersect") >= 0) {
+            // the word intersect was found...we'll need to have the other validater check it
+            return checkWithSqlParser(query);
+        } else {
+            return {
+                action: 'error',
+                type: 'Syntax Issue',
+                parseSQLResults: checkSQL,
+                message: "Please check SQL command, one possible issue is you have intersect included."
+            };
+        }
     }
-    
-    queryCheck = checkSQL.statement[0];
-      if(queryCheck.name == 'SyntaxError'){
-        console.log("Do things for errors: ", queryCheck);
-      	try{
-      	    console.log("Pass this query to ");
-      	}
-      	catch(error){
-      	  console.log("Do things for errors: ", error);
-      	}
-      		
-      }
-      else if(queryCheck.variant != 'select'){
-      	console.log("Do things for tables / views");
-      }
-      else{
-      	console.log("Pass this query to ");
-      }
+    else if (checkSQL.statement.length > 1) {
+        // Everything is valid BUT there are several queries.
+        return {
+            action: 'error',
+            type: 'tooMany',
+            message: "Please enter only one query/command at a time."
+        }
+        //$("#sqlResults").html('<h3>Sorry, but please enter only one query/command at a time.</h3>')
+        return;
+    }
+    else {
+        queryCheck = checkSQL.statement[0];
+        // Check if we are dealing with a query or command
+        if (queryCheck.variant != 'select') {
+            // parseSQL can correctly parse all non-select commands, unless there is an intersect found
+            if (queryCheck.format == 'table') {
+                handleCreateTable(queryCheck);
+                update(0);
+                return {
+                    action: 'parsed',
+                    message: 'Command executed',
+                    type: 'table'
+                }
+            }
+            else {
+                handleCreateView(queryCheck);
+                update(1);
+                return {
+                    action: 'parsed',
+                    message: 'Command executed',
+                    type: 'view'
+                }
+            }
+        }
+        else {
+            // parseSQL can't handle intersect so we need to have another validater to check.
+            return checkWithSqlParser(query);
+        }
+    }
 }
 
 var startParse = function(){ 
     var query = $("#sqlText").val();
     
-    // Remove the ; from the sql statement.
+    // Remove the last ; from the sql statement, if the user enters several commands and separates them with a ; then we'll handle it shortly.
     if(query.slice(-1) == ';'){
     	query = query.slice(0,-1)
     }
-    
-    var test = parser.parse($("#sqlText").val());
-    /*
-    $.each(re.statement, function(index, statement){
-	console.log("ble: ", statement);
-	switch(statement.variant){
-		case 'create':
-			if(statement.format == 'table'){
-				handleCreateTable(statement);
-				update(0);
-			}
-			else{
-				handleCreateView(statement);
-				update(1);
-			}
-			break;
-		case 'select':
-			handleQuery(statement);
-		default:
-			console.log(statement.variant);
-	};
-    }) 
-    
-    //console.log(re);
-    //$("#sqlResults").val(JSON.stringify(re));
-    */
-}
+    action = checkWithSqliteParser(query);
 
-var parseSQL = function (string){
-   re = null;
-   sqliteParser(string, function(error, results){
-      if(error){
-      	re = error;
-      	$("#sqlResults").val(JSON.stringify(re));
-      }
-      else{
-       re = results;
-      }
-    });
-   return re;
+    switch (action.action){
+        case 'error':
+            $("#sqlResults").text(action.message);
+            break;
+        case 'parsed':
+            $("#sqlResults").text(action.message);
+            break;
+        default:
+            console.log(action);
+        }
+
 }
 
 var handleCreateTable = function (statement) {
@@ -301,9 +377,6 @@ var parseSelect = function(select){
 
 var parseFrom = function(from){
 	var relationSelect = {action: 'select', symbol: '&sigma;'};
-	
-	
-	
 }
 
 
