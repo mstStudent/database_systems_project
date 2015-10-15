@@ -168,36 +168,118 @@ var purgeRelations = function(){
     //updateLeft();
 }
 
-var convertToRelationalAlgebra = function (sqlJson) {
-    console.log(sqlJson);
+var convertToRelationalAlgebra = function (sqlJson, where) {
     switch (sqlJson.nodeType) {
         case 'Main':
             return convertToRelationalAlgebra(sqlJson.value[0])
             break;
         case 'Select':
-            var columns = {};
+            var relat = {
+            	'project':{ 'symbol': '&Pi;', conditions: []},
+            	'select': { 'symbol': '&sigma;', conditions: null},
+            	'from':   { 'symbol': 'X', conditions: []}
+            };
             $.each(sqlJson.columns, function (index, column) {
-                columns[index] = convertToRelationalAlgebra(column)
-            })
-            return columns;
+                relat['project'].conditions[index] = convertToRelationalAlgebra(column);
+            });
+            $.each(sqlJson.from, function (index, fromStatement) {
+              relat['from'].conditions[index] = convertToRelationalAlgebra(fromStatement);
+            });
+            relat.select.conditions = convertToRelationalAlgebra(sqlJson.where,1);
+/*            
+            if(sqlJson.where.nodeType == 'AndCondition'){
+              var cond = {
+                  'andOr' : 0,
+                  'symbol' : '&Lambda;',
+                  'conditions': [] 
+              } 
+              $.each(sqlJson.where.value, function (index, whereStatement) {
+                cond.conditions[index] = convertToRelationalAlgebra(whereStatement)
+              })
+              
+            }
+            else{
+              var cond = {
+                  'andOr' : 1,
+                  'symbol' : 'V',
+                  'conditions': { 
+                    'conditionsL': [],
+                    'conditionsR': []
+                  },
+              }
+              $.each(sqlJson.where.left, function (index, whereStatement) {
+                cond.conditions.conditionsL[index] = convertToRelationalAlgebra(whereStatement)
+              });
+              $.each(sqlJson.where.right, function (index, whereStatement) {
+                cond.conditions.conditionsR[index] = convertToRelationalAlgebra(whereStatement)
+              });
+            }
+            relat['select'].conditions = cond;
+*/
+            return relat;
             break;
         case 'Column':
             return convertToRelationalAlgebra(sqlJson.value);
             break;
         case 'AndCondition':
-            return convertToRelationalAlgebra(sqlJson.value[0]);
+            if(where == 1){
+              var elem = {
+                action: 'and',
+                symbol: '&Lambda;',
+                conditions: []
+              };
+              $.each(sqlJson.value, function(index, obj){
+                elem.conditions.push(convertToRelationalAlgebra(obj))
+              })
+              return elem;
+            }else{
+             return convertToRelationalAlgebra(sqlJson.value[0])
+            }
+            break;
+        case 'OrCondition':
+            var elem = {
+                action: 'or',
+                symbol: 'V',
+                conditions: {}
+              };
+              elem.conditions['left'] = convertToRelationalAlgebra(sqlJson.left, 1);
+              elem.conditions['right'] = convertToRelationalAlgebra(sqlJson.right[0], 1);
+            return elem;
             break;
         case 'Condition':
-            return convertToRelationalAlgebra(sqlJson.value[0]);
+            return convertToRelationalAlgebra(sqlJson.value);
             break;
         case 'Term':
-            return {selCondition: sqlJsonvalue}
+            return {selCondition: sqlJson.value}
             break;
+        case 'TableExpr':
+            var expression = {
+                'alias': null,
+                'aliasSymbol': '&rho;',
+                'tableName': null
+            }
+            expression.alias = sqlJson.value[0].alias.value;
+            expression.tableName = sqlJson.value[0].exprName;
+            return expression;
+            break;
+        case 'BinaryCondition':
+            var expression = {
+            left: null,
+            operator: null,
+            right: null
+            };
+            expression.left = convertToRelationalAlgebra(sqlJson.left);
+            expression.operator = sqlJson.right.op;
+            expression.right =convertToRelationalAlgebra(sqlJson.right.value);
+            
+            /*console.log('expression: ', expression);*/
+            return expression;
         default:
             console.log("Forgot: ", sqlJson);
     }
 
 }
+
 
 
 var checkWithParser = function (sql) {
@@ -208,6 +290,12 @@ var checkWithParser = function (sql) {
 
 /* The main validator for all queries, the main reason is that sqliteParser doesn't reconize intersect but sqlparser does */
 var checkWithSqlParser = function (query) {
+return {
+            action: 'parsed',
+            message: 'Command Yays!',
+            type: 'table',
+            results: checkWithParser(query)
+        }
     try {
         return {
             action: 'parsed',
@@ -216,11 +304,13 @@ var checkWithSqlParser = function (query) {
             results: checkWithParser(query)
         }
     } catch (error) {
+	console.log("Error: " , error);
         return {
             action: 'error',
             type: 'Syntax Issue',
-            message: "There is a syntax issue."
+            message: "There is a syntax issue"
         };
+        
     }
 }
 
@@ -284,6 +374,72 @@ var checkWithSqliteParser = function(query){
     }
 }
 
+
+var createMessage = function(relation){
+    var pro = relation.project;
+    var from = relation.from;
+    var sel = relation.select;
+    
+    var proSection = pro.symbol + '<sub> ';
+    $.each(pro.conditions, function(index, attr){
+        proSection = proSection + attr.selCondition;
+        if( index + 1 != pro.conditions.length )
+           proSection = proSection + ', ';
+    })
+    proSection = proSection + '</sub> '
+    
+    var fromSection = '(';
+    
+    $.each(from.conditions, function(index, rel){
+       if(rel.alias != null){
+         fromSection = fromSection + rel.aliasSymbol + '<sub>' + rel.alias + '</sub>' + '(' + rel.tableName + ') ';
+       }else{
+         fromSection = fromSection + rel.tableName + ' ';
+       }
+       if( index + 1 != from.conditions.length)
+         fromSection = fromSection + from.symbol + ' '; 
+    })
+ 
+    fromSection = fromSection + ')' 
+ 
+    var selSection = sel.symbol + '<sub> ';
+   
+    selSection = selSection + '</sub> ';    
+    
+/*    
+    if(sel.conditions.andOr == 0){
+      $.each(sel.conditions.conditions, function(index, condit){
+        selSection = selSection + condit.left.selCondition + ' ';
+        selSection = selSection + condit.operator;
+        selSection = selSection + condit.right.selCondition + ' ';
+        if(index + 1 != sel.conditions.conditions.length)
+          selSection = selSection + sel.conditions.symbol + ' '
+      })
+      selSection = selSection + '</sub> ';
+    }else{
+      $.each(sel.conditions.conditions.conditionsL, function(index, condit){
+        selSection = selSection + condit.left.selCondition + ' ';
+        selSection = selSection + condit.operator;
+        selSection = selSection + condit.right.selCondition + ' ';
+        if(index + 1 != sel.conditions.conditionsL.length)
+          selSection = selSection + sel.conditions.symbol + ' '
+      })
+      $.each(sel.conditions.conditions.conditionsR, function(index, condit){
+        selSection = selSection + condit.left.selCondition + ' ';
+        selSection = selSection + condit.operator;
+        selSection = selSection + condit.right.selCondition + ' ';
+        if(index + 1 != sel.conditions.conditions.conditionsR.length)
+          selSection = selSection + sel.conditions.symbol + ' '
+      })
+     
+      
+      selSection = selSection + '</sub> ';
+    
+    }*/
+    return proSection + selSection + fromSection;
+
+}
+
 var startParse = function(){ 
     var query = $("#sqlText").val();
     
@@ -292,13 +448,13 @@ var startParse = function(){
     	query = query.slice(0,-1)
     }
     action = checkWithSqliteParser(query);
-
+    console.log("action: " , action);
     switch (action.action){
         case 'error':
             $("#sqlResults").text(action.message);
             break;
         case 'parsed':
-            $("#sqlResults").text(action.message);
+            $("#sqlResults").html(createMessage(action.results));
             break;
         default:
             console.log(action);
@@ -355,58 +511,7 @@ var handleCreateView = function (statement) {
 
 }
 
-var parseLeft = function(left){
-	console.log("Left: ", left);
-}
 
-var parseRight = function(right){
-	console.log("Right: ", right);
-}
-
-
-var parseSelect = function(select){
-	curProject = {action: 'project', symbol: '&Pi;'};
-
-	$.each(select, function(index, item){
-		project["column "+index] = item.name.sub();
-	});
-	
-	return project;
-
-}
-
-var parseFrom = function(from){
-	var relationSelect = {action: 'select', symbol: '&sigma;'};
-}
-
-
-var handleQuery = function(statement){
-	var select = parseSelect(statement.result);
-	var from = parseFrom(statement.from);
-	var where = statement.where;
-	
-	var sel = '&sigma;';
-	var overall = '';
-/*
-	$.each(where, function(index, item){
-	   $.each(item.left, function(index, leftside){
-	   	parseLeft(leftside)
-	   })
-	   sel = sel + ' AND '
-	   $.each(item.right, function(index, rightside){
-	   	parseRight(rightside);
-	   })
-	})
-	
-	*/
-	
-	$.each(select, function(index, item){
-		index=='action'? null: overall += item;
-	});
-	$("#sqlResults").html(overall);
-	
-	console.log(statement);
-}
 
 /*
 SELECT S.sname
