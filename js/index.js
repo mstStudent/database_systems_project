@@ -41,6 +41,14 @@ SELECT S2.sid
 FROM Sailors AS S2, Reserves AS R2, Boats AS B2
 WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B.2color='green'
 
+SELECT S.sid
+FROM Sailors AS S, Reserves AS R, Boats AS B
+WHERE S.sid=R.sid AND R.bid=B.bid AND B.color='red'
+EXCEPT
+SELECT S2.sid
+FROM Sailors AS S2, Reserves AS R2, Boats AS B2
+WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B2.color='green'
+
 SELECT S.sname
 FROM Sailors AS S
 WHERE S.sid IN ( SELECT R.sid
@@ -355,6 +363,8 @@ var checkWithParser = function (sql) {
     }catch(error){
     errorString = String(error);
     
+    console.log("ERROR! :"  , error );
+    
     errorString = errorString.slice(errorString.indexOf('...') + 4);
     
     dashes = errorString.indexOf('-');
@@ -378,7 +388,10 @@ var checkWithParser = function (sql) {
     }
     if(relationJson == null)
       relationJson = convertToRelationalAlgebra(sqlJson);
-    return relationJson;
+    return {
+    	action: 'parsed',
+      results: relationJson
+    };
 }
 
 var goThroughSelect = function(select){
