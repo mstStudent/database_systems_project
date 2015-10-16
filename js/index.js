@@ -57,19 +57,6 @@ WHERE S.sid IN ((SELECT R.sid
 		FROM Reserve AS R2, Boats AS B2
 		WHERE R2.bid = B2.bid AND B2.color = 'green'))
 
-*/
-
-/*
-Schemas of the underlying relations;
-	a. Sailors(sid:integer, sname:string, rating:integer, age:real)
-	b. Boats(bid:integer, bname:string, color:string)
-	c. Reserves(sid:integer, bid:integer, day:date)
-
-
-
-
-
-
 
 CREATE TABLE Persons
 (
@@ -93,6 +80,92 @@ CREATE VIEW [Current Product List] AS
 SELECT ProductID,ProductName
 FROM Products
 WHERE Discontinued='No'
+
+
+SELECT sname
+FROM Sailors, Boats, Reserves
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND
+Boats.color='red'
+UNION
+SELECT sname
+FROM Sailors, Boats, Reserves
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND
+Boats.color='green'
+
+SELECT S.sname
+FROM Sailors AS S, Reserves AS R
+WHERE R.sid = S.sid AND R.bid = 100 AND R.rating > 5 AND R.day =
+‘8/9/09'
+
+SELECT sname
+FROM Sailors, Boats, Reserves
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND
+Boats.color='red'
+INTERSECT
+SELECT sname
+FROM Sailors, Boats, Reserves
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND
+Boats.color='green'
+
+SELECT S.sid
+FROM Sailors AS S, Reserves AS R, Boats AS B
+WHERE S.sid=R.sid AND R.bid=B.bid AND B.color=‘red'
+EXCEPT
+SELECT S2.sid
+FROM Sailors AS S2, Reserves AS R2, Boats AS B2
+WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B.2color=‘green'
+
+SELECT S.sname
+FROM Sailors AS S
+WHERE S.sid IN ( SELECT R.sid
+ FROM Reserve AS R
+ WHERE R.bid = 103)
+
+SELECT S.sname
+FROM Sailors AS S
+WHERE S.sid IN ((SELECT R.sid
+ FROM Reserve AS R, Boats AS B
+ WHERE R.bid = B.bid AND B.color = ‘red')
+ INTERSECT
+ (SELECT R2.sid
+ FROM Reserve AS R2, Boats AS B2
+ WHERE R2.bid = B2.bid AND B2.color = ‘green'))
+
+SELECT S.sname
+FROM Sailors AS S
+WHERE S.age > (SELECT MAX (S2.age)
+ FROM Sailors S2
+ WHERE R.sid = S2.rating = 10)
+
+SELECT B.bid, Count (*) AS reservationcount
+FROM Boats B, Reserves R
+WHERE R.bid=B.bid AND B.color = ‘red'
+GROUP BY B.bid
+
+SELECT B.bid, Count (*) AS reservationcount
+FROM Boats B, Reserves R
+WHERE R.bid=B.bid AND B.color = ‘red'
+GROUP BY B.bid
+HAVING B.color = ‘red'
+
+SELECT Sname
+FROM Sailors
+WHERE Sailor.sid IN (SELECT Reserves.bid, Reserves.sid
+ FROM Reserves
+ CONTAINS
+ (SLECT Boats.bid
+ FROM Boats
+ WHERE Boats.name = ‘interlake') )
+
+
+SELECT S.rating, Ave (S.age) As average
+FROM Sailors S
+WHERE S.age > 18
+GROUP BY S.rating
+HAVING Count (*) > 1 
+
+
+
 
 */
 
@@ -171,7 +244,11 @@ var purgeRelations = function(){
 var convertToRelationalAlgebra = function (sqlJson, where) {
     switch (sqlJson.nodeType) {
         case 'Main':
-            return convertToRelationalAlgebra(sqlJson.value[0])
+            var message = {};
+            $.each(sqlJson.value, function(index, query){
+               message[index] = convertToRelationalAlgebra(query)
+            })
+            return message;
             break;
         case 'Select':
             var relat = {
@@ -186,36 +263,6 @@ var convertToRelationalAlgebra = function (sqlJson, where) {
               relat['from'].conditions[index] = convertToRelationalAlgebra(fromStatement);
             });
             relat.select.conditions = convertToRelationalAlgebra(sqlJson.where,1);
-/*            
-            if(sqlJson.where.nodeType == 'AndCondition'){
-              var cond = {
-                  'andOr' : 0,
-                  'symbol' : '&Lambda;',
-                  'conditions': [] 
-              } 
-              $.each(sqlJson.where.value, function (index, whereStatement) {
-                cond.conditions[index] = convertToRelationalAlgebra(whereStatement)
-              })
-              
-            }
-            else{
-              var cond = {
-                  'andOr' : 1,
-                  'symbol' : 'V',
-                  'conditions': { 
-                    'conditionsL': [],
-                    'conditionsR': []
-                  },
-              }
-              $.each(sqlJson.where.left, function (index, whereStatement) {
-                cond.conditions.conditionsL[index] = convertToRelationalAlgebra(whereStatement)
-              });
-              $.each(sqlJson.where.right, function (index, whereStatement) {
-                cond.conditions.conditionsR[index] = convertToRelationalAlgebra(whereStatement)
-              });
-            }
-            relat['select'].conditions = cond;
-*/
             return relat;
             break;
         case 'Column':
@@ -224,7 +271,7 @@ var convertToRelationalAlgebra = function (sqlJson, where) {
         case 'AndCondition':
             if(where == 1){
               var elem = {
-                action: 'and',
+                operator: 'and',
                 symbol: '&Lambda;',
                 conditions: []
               };
@@ -238,12 +285,13 @@ var convertToRelationalAlgebra = function (sqlJson, where) {
             break;
         case 'OrCondition':
             var elem = {
-                action: 'or',
+                operator: 'or',
                 symbol: 'V',
-                conditions: {}
+                left: null,
+                right: null
               };
-              elem.conditions['left'] = convertToRelationalAlgebra(sqlJson.left, 1);
-              elem.conditions['right'] = convertToRelationalAlgebra(sqlJson.right[0], 1);
+              elem.left = convertToRelationalAlgebra(sqlJson.left, 1);
+              elem.right = convertToRelationalAlgebra(sqlJson.right[0], 1);
             return elem;
             break;
         case 'Condition':
@@ -258,7 +306,8 @@ var convertToRelationalAlgebra = function (sqlJson, where) {
                 'aliasSymbol': '&rho;',
                 'tableName': null
             }
-            expression.alias = sqlJson.value[0].alias.value;
+            if(sqlJson.value[0].alias != null)
+                 expression.alias = sqlJson.value[0].alias.value;
             expression.tableName = sqlJson.value[0].exprName;
             return expression;
             break;
@@ -284,12 +333,14 @@ var convertToRelationalAlgebra = function (sqlJson, where) {
 
 var checkWithParser = function (sql) {
     var sqlJson = parser.parse(sql);
+    console.log('start: ' , sqlJson)
     var relationJson = convertToRelationalAlgebra(sqlJson);
     return relationJson;
 }
 
 /* The main validator for all queries, the main reason is that sqliteParser doesn't reconize intersect but sqlparser does */
 var checkWithSqlParser = function (query) {
+
 return {
             action: 'parsed',
             message: 'Command Yays!',
@@ -314,10 +365,20 @@ return {
     }
 }
 
+/*
 
-/*  The first sql validator and the vaildator that allows to handle relations and views */
+BELOW IS THE PORTION OF CODE FOR HANDLING SEVERAL QUERIES AT ONCE AND THE TABLE / VIEW MANIPULATION
+	It's only a future feature so it's not the main focus now.
+
 var checkWithSqliteParser = function(query){
-    var checkSQL = parseSQL(query);
+    var sqlToJson = null;
+    try{
+      sqlToJson = checkWithSqlParser(query);
+    }
+    catch(error){
+       console.log(error);
+    }
+    return sqlToJson;
 
     // There are two possible reasons for the SyntaxError either it's really an error or intersect is in the query somewhere.
     if (checkSQL.name == 'SyntaxError') {
@@ -372,8 +433,42 @@ var checkWithSqliteParser = function(query){
             return checkWithSqlParser(query);
         }
     }
-}
 
+}*/
+
+var goThroughSelect = function(select){
+    var message = '';
+    switch (select.operator){
+      case 'and':
+          $.each(select.conditions, function(index, condition){
+              message = message + goThroughSelect(condition);
+              if(index + 1 != select.conditions.length){
+                 message = message + ' ' + select.symbol + ' ';
+              }
+          });
+          break;
+      case 'or':
+          message = message + goThroughSelect(select.left);
+          message = message + ' ' + select.symbol + ' ';
+          message = message + goThroughSelect(select.right);
+          break;
+      case '=':
+      case '>':
+      case '<':
+      case '!=':
+          message = message + goThroughSelect(select.left);
+          message = message + select.operator;
+          message = message + goThroughSelect(select.right);
+          break;
+      default:
+          if(select.selCondition != null){
+            return select.selCondition;
+          }
+          console.log("Forgot this ( where ) : " , select);
+    }
+
+    return message;
+}
 
 var createMessage = function(relation){
     var pro = relation.project;
@@ -403,39 +498,8 @@ var createMessage = function(relation){
     fromSection = fromSection + ')' 
  
     var selSection = sel.symbol + '<sub> ';
-   
-    selSection = selSection + '</sub> ';    
-    
-/*    
-    if(sel.conditions.andOr == 0){
-      $.each(sel.conditions.conditions, function(index, condit){
-        selSection = selSection + condit.left.selCondition + ' ';
-        selSection = selSection + condit.operator;
-        selSection = selSection + condit.right.selCondition + ' ';
-        if(index + 1 != sel.conditions.conditions.length)
-          selSection = selSection + sel.conditions.symbol + ' '
-      })
-      selSection = selSection + '</sub> ';
-    }else{
-      $.each(sel.conditions.conditions.conditionsL, function(index, condit){
-        selSection = selSection + condit.left.selCondition + ' ';
-        selSection = selSection + condit.operator;
-        selSection = selSection + condit.right.selCondition + ' ';
-        if(index + 1 != sel.conditions.conditionsL.length)
-          selSection = selSection + sel.conditions.symbol + ' '
-      })
-      $.each(sel.conditions.conditions.conditionsR, function(index, condit){
-        selSection = selSection + condit.left.selCondition + ' ';
-        selSection = selSection + condit.operator;
-        selSection = selSection + condit.right.selCondition + ' ';
-        if(index + 1 != sel.conditions.conditions.conditionsR.length)
-          selSection = selSection + sel.conditions.symbol + ' '
-      })
-     
-      
-      selSection = selSection + '</sub> ';
-    
-    }*/
+    selSection = selSection + goThroughSelect(sel.conditions);
+    selSection = selSection + '</sub> ';
     return proSection + selSection + fromSection;
 
 }
@@ -447,17 +511,21 @@ var startParse = function(){
     if(query.slice(-1) == ';'){
     	query = query.slice(0,-1)
     }
-    action = checkWithSqliteParser(query);
-    console.log("action: " , action);
+    action = checkWithSqlParser(query);
+    console.log("Before Switch Case: " , action);
     switch (action.action){
         case 'error':
             $("#sqlResults").text(action.message);
             break;
         case 'parsed':
-            $("#sqlResults").html(createMessage(action.results));
+            var htmlMessage = '';
+            $.each(action.results, function(index, result){
+                htmlMessage = htmlMessage + createMessage(result)
+            })
+            $("#sqlResults").html(htmlMessage);
             break;
         default:
-            console.log(action);
+            console.log('Bad things happened', action);
         }
 
 }
@@ -510,20 +578,6 @@ var handleCreateView = function (statement) {
 	views.push(template);
 
 }
-
-
-
-/*
-SELECT S.sname
-FROM Sailors AS S, Reserves AS R
-WHERE S.sid=R.sid AND R.bid=103
-
-*/
-
-
-
-
-
 
 /* init */
 

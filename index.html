@@ -17,9 +17,15 @@
 
 <div id="middleContent">
   <div id="sqlQuery">
-    <textarea id="sqlText" rows=4 cols=50>SELECT S.sname
-FROM Sailors AS S, Reserves AS R
-WHERE S.sid=R.sid AND R.bid=103</textarea>
+    <textarea id="sqlText" rows=4 cols=50>
+SELECT sname
+FROM Sailors, Boats, Reserves
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='red'
+UNION
+SELECT sname
+FROM Sailors, Boats, Reserves
+WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='green'
+</textarea>
     <button id=submit type=submit onclick=startParse()>submit</button>
   </div>
 
