@@ -18,13 +18,13 @@
 <div id="middleContent">
   <div id="sqlQuery">
     <textarea id="sqlText" rows=4 cols=50>
-SELECT sname
-FROM Sailors, Boats, Reserves
-WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='red'
-UNION
-SELECT sname
-FROM Sailors, Boats, Reserves
-WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='green'
+SELECT S.sid
+FROM Sailors AS S, Reserves AS R, Boats AS B
+WHERE S.sid=R.sid AND R.bid=B.bid AND B.color='red'
+EXCEPT
+SELECT S2.sid
+FROM Sailors AS S2, Reserves AS R2, Boats AS B2
+WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B.2.color='green'
 </textarea>
     <button id=submit type=submit onclick=startParse()>submit</button>
   </div>
@@ -53,6 +53,7 @@ WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='green
 <script language="javascript" src="js/sqlite-parser-min.js"></script>
 <!-- Created By camilojd: Main Code from https://github.com/camilojd/sequeljs-->
 <script language="javascript" src="js/parser/SqlParser.js"></script>
+<script language="javascript" src="js/parser/SqlPrettyPrinter.js"></script>
 <!-- My own scripts -->
 <script language="javascript" src="js/index.js"></script>
 </footer>

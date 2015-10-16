@@ -323,6 +323,22 @@ var convertToRelationalAlgebra = function (sqlJson, where) {
             
             /*console.log('expression: ', expression);*/
             return expression;
+        case 'SetOperator':
+ 	    switch (sqlJson.value){
+ 	        case 'UNION':
+ 	            return {'type': 'union', 'symbol': '&cup;'}
+ 	            break;
+ 	        case 'INTERSECT':
+ 	            return {'type': 'intersect', 'symbol': '&cap;'}
+ 	            break;
+          case 'EXCEPT':
+ 	            return {'type': 'intersect', 'symbol': '&minus;'}
+ 	            break;
+ 	        default:
+ 	            console.log('Forgot (SET OP): ', sqlJson)
+ 	    
+ 	    }
+            break;
         default:
             console.log("Forgot: ", sqlJson);
     }
@@ -332,109 +348,38 @@ var convertToRelationalAlgebra = function (sqlJson, where) {
 
 
 var checkWithParser = function (sql) {
-    var sqlJson = parser.parse(sql);
-    console.log('start: ' , sqlJson)
-    var relationJson = convertToRelationalAlgebra(sqlJson);
-    return relationJson;
-}
-
-/* The main validator for all queries, the main reason is that sqliteParser doesn't reconize intersect but sqlparser does */
-var checkWithSqlParser = function (query) {
-
-return {
-            action: 'parsed',
-            message: 'Command Yays!',
-            type: 'table',
-            results: checkWithParser(query)
-        }
-    try {
-        return {
-            action: 'parsed',
-            message: 'Command Yays!',
-            type: 'table',
-            results: checkWithParser(query)
-        }
-    } catch (error) {
-	console.log("Error: " , error);
-        return {
+    var relationJson = null;
+    try{
+        var sqlJson = parser.parse(sql);
+        console.log('start: ' , sqlJson)
+    }catch(error){
+    errorString = String(error);
+    
+    errorString = errorString.slice(errorString.indexOf('...') + 4);
+    
+    dashes = errorString.indexOf('-');
+    
+    carror = errorString.indexOf('^') - 5;
+    
+    tim = carror - dashes + 1
+    
+    er = errorString.slice(0,dashes) + '<br></br>' + '-----' + errorString.slice(dashes)
+    
+    test = errorString.slice(0,tim) + '<span style = "color:red">' + errorString.slice(tim,tim+1) + '</span>' + errorString.slice(tim+1,dashes-1);
+    
+    test = test + '<br></br> The start of the problem is highlighted in red.'
+    
+    
+    relationJson =  {
             action: 'error',
             type: 'Syntax Issue',
-            message: "There is a syntax issue"
+            message: test
         };
-        
     }
+    if(relationJson == null)
+      relationJson = convertToRelationalAlgebra(sqlJson);
+    return relationJson;
 }
-
-/*
-
-BELOW IS THE PORTION OF CODE FOR HANDLING SEVERAL QUERIES AT ONCE AND THE TABLE / VIEW MANIPULATION
-	It's only a future feature so it's not the main focus now.
-
-var checkWithSqliteParser = function(query){
-    var sqlToJson = null;
-    try{
-      sqlToJson = checkWithSqlParser(query);
-    }
-    catch(error){
-       console.log(error);
-    }
-    return sqlToJson;
-
-    // There are two possible reasons for the SyntaxError either it's really an error or intersect is in the query somewhere.
-    if (checkSQL.name == 'SyntaxError') {
-        if (query.toLowerCase().indexOf("intersect") >= 0) {
-            // the word intersect was found...we'll need to have the other validater check it
-            return checkWithSqlParser(query);
-        } else {
-            return {
-                action: 'error',
-                type: 'Syntax Issue',
-                parseSQLResults: checkSQL,
-                message: "Please check SQL command, one possible issue is you have intersect included."
-            };
-        }
-    }
-    else if (checkSQL.statement.length > 1) {
-        // Everything is valid BUT there are several queries.
-        return {
-            action: 'error',
-            type: 'tooMany',
-            message: "Please enter only one query/command at a time."
-        }
-        //$("#sqlResults").html('<h3>Sorry, but please enter only one query/command at a time.</h3>')
-        return;
-    }
-    else {
-        queryCheck = checkSQL.statement[0];
-        // Check if we are dealing with a query or command
-        if (queryCheck.variant != 'select') {
-            // parseSQL can correctly parse all non-select commands, unless there is an intersect found
-            if (queryCheck.format == 'table') {
-                handleCreateTable(queryCheck);
-                update(0);
-                return {
-                    action: 'parsed',
-                    message: 'Command executed',
-                    type: 'table'
-                }
-            }
-            else {
-                handleCreateView(queryCheck);
-                update(1);
-                return {
-                    action: 'parsed',
-                    message: 'Command executed',
-                    type: 'view'
-                }
-            }
-        }
-        else {
-            // parseSQL can't handle intersect so we need to have another validater to check.
-            return checkWithSqlParser(query);
-        }
-    }
-
-}*/
 
 var goThroughSelect = function(select){
     var message = '';
@@ -457,7 +402,7 @@ var goThroughSelect = function(select){
       case '<':
       case '!=':
           message = message + goThroughSelect(select.left);
-          message = message + select.operator;
+          message = message + ' ' + select.operator + ' ';
           message = message + goThroughSelect(select.right);
           break;
       default:
@@ -475,32 +420,37 @@ var createMessage = function(relation){
     var from = relation.from;
     var sel = relation.select;
     
-    var proSection = pro.symbol + '<sub> ';
-    $.each(pro.conditions, function(index, attr){
-        proSection = proSection + attr.selCondition;
-        if( index + 1 != pro.conditions.length )
-           proSection = proSection + ', ';
-    })
-    proSection = proSection + '</sub> '
-    
-    var fromSection = '(';
-    
-    $.each(from.conditions, function(index, rel){
-       if(rel.alias != null){
-         fromSection = fromSection + rel.aliasSymbol + '<sub>' + rel.alias + '</sub>' + '(' + rel.tableName + ') ';
-       }else{
-         fromSection = fromSection + rel.tableName + ' ';
-       }
-       if( index + 1 != from.conditions.length)
-         fromSection = fromSection + from.symbol + ' '; 
-    })
- 
-    fromSection = fromSection + ')' 
- 
-    var selSection = sel.symbol + '<sub> ';
-    selSection = selSection + goThroughSelect(sel.conditions);
-    selSection = selSection + '</sub> ';
-    return proSection + selSection + fromSection;
+    if(relation.type != null){
+      return ' ' + relation.symbol + ' ';
+    }else{
+		  
+		  var proSection = pro.symbol + '<sub> ';
+		  $.each(pro.conditions, function(index, attr){
+		      proSection = proSection + attr.selCondition;
+		      if( index + 1 != pro.conditions.length )
+		         proSection = proSection + ', ';
+		  })
+		  proSection = proSection + '</sub> '
+		  
+		  var fromSection = '(';
+		  
+		  $.each(from.conditions, function(index, rel){
+		     if(rel.alias != null){
+		       fromSection = fromSection + rel.aliasSymbol + '<sub>' + rel.alias + '</sub>' + '(' + rel.tableName + ') ';
+		     }else{
+		       fromSection = fromSection + rel.tableName + ' ';
+		     }
+		     if( index + 1 != from.conditions.length)
+		       fromSection = fromSection + from.symbol + ' '; 
+		  })
+	 
+		  fromSection = fromSection + ')' 
+	 
+		  var selSection = sel.symbol + '<sub> ';
+		  selSection = selSection + goThroughSelect(sel.conditions);
+		  selSection = selSection + '</sub> ';
+		  }
+		return proSection + selSection + fromSection;
 
 }
 
@@ -511,71 +461,26 @@ var startParse = function(){
     if(query.slice(-1) == ';'){
     	query = query.slice(0,-1)
     }
-    action = checkWithSqlParser(query);
+    action = checkWithParser(query);
     console.log("Before Switch Case: " , action);
     switch (action.action){
         case 'error':
-            $("#sqlResults").text(action.message);
+            $("#sqlResults").html(action.message);
             break;
         case 'parsed':
             var htmlMessage = '';
             $.each(action.results, function(index, result){
                 htmlMessage = htmlMessage + createMessage(result)
+                /*
+                if(index + 1 != action.results.length)
+                   htmlMessage = htmlMessage + '<br></br>'
+                */
             })
             $("#sqlResults").html(htmlMessage);
             break;
         default:
             console.log('Bad things happened', action);
         }
-
-}
-
-var handleCreateTable = function (statement) {
-	template = {table: statement.name.name, columns: []};
-	$.each(statement.definition, function(index, attriDef){
-		var column = null;
-		switch(attriDef.variant){
-			case 'column':
-				if(attriDef.datatype.affinity == 'text'){
-					column = attriDef.name+':string';
-				}
-				else{
-					column = attriDef.name;
-				}
-				break;
-			default:
-				console.log('def : ', attriDef);
-		}
-		if(column != null){
-			template.columns.push(column);
-		}
-		
-		
-	})
-	relations.push(template);
-}
-
-var handleCreateView = function (statement) {
-	template = {
-		table: statement.target.name,
-		columns: [],
-		sql: statement.result};
-	$.each(statement.result.result, function(index, attriDef){
-		var column = null;
-		switch(attriDef.variant){
-			case 'column':
-				column = attriDef.name;
-				break;
-			default:
-				console.log('def : ', attriDef);
-		}
-		if(column != null){
-			template.columns.push(column);
-		}
-		
-		
-	})
-	views.push(template);
 
 }
 
