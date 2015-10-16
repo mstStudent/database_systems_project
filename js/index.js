@@ -49,6 +49,9 @@ SELECT S2.sid
 FROM Sailors AS S2, Reserves AS R2, Boats AS B2
 WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B2.color='green'
 
+
+------------------------------------------------------------------------------------------------------------
+
 SELECT S.sname
 FROM Sailors AS S
 WHERE S.sid IN ( SELECT R.sid
@@ -347,10 +350,17 @@ var convertToRelationalAlgebra = function (sqlJson, where) {
  	    
  	    }
             break;
+        case 'RhsInSelect':
+						var thing = {'operation': 'in',
+						        'symbol': '&cap;',
+						        'conditions': {}
+						}
+						$.each(sqlJson, function(index, part){ thing.conditions[index] = convertToRelationalAlgebra(part)})
+						return thing
+            break;
         default:
-            console.log("Forgot: ", sqlJson);
+              console.log("Forgot: ", sqlJson);
     }
-
 }
 
 
@@ -421,6 +431,12 @@ var goThroughSelect = function(select){
       default:
           if(select.selCondition != null){
             return select.selCondition;
+          }
+          if(select.left != null){
+             return goThroughSelect(select.left)
+          }
+          if(select.right != null){
+             return goThroughSelect(select.right)
           }
           console.log("Forgot this ( where ) : " , select);
     }

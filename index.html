@@ -18,13 +18,11 @@
 <div id="middleContent">
   <div id="sqlQuery">
     <textarea id="sqlText" rows=4 cols=50>
-SELECT S.sid
-FROM Sailors AS S, Reserves AS R, Boats AS B
-WHERE S.sid=R.sid AND R.bid=B.bid AND B.color='red'
-EXCEPT
-SELECT S2.sid
-FROM Sailors AS S2, Reserves AS R2, Boats AS B2
-WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B2.color='green'
+SELECT S.sname
+FROM Sailors AS S
+WHERE S.sid IN ( SELECT R.sid
+                 FROM Reserve AS R
+                 WHERE R.bid = 103)
 </textarea>
     <button id=submit type=submit onclick=startParse()>submit</button>
   </div>
