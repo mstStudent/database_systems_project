@@ -10,19 +10,18 @@
 <div>
 <div id='leftMenu'>
   <h2>Relations</h2>
-  <dl id='relationsList'>
-  </dl>
+    <dl id="relationsList"><dt>Sailors<dd>sid:integer</dd><dd>sname:string</dd><dd>rating:integer</dd><dd>age:real</dd><dt>Boats<dd>bid:integer</dd><dd>bname:string</dd><dd>color:string</dd></dt><dt>Reserves<dd>sid:integer</dd><dd>bid:integer</dd><dd>day:date</dd></dt></dt></dl>
   <button id=submit type=submit onclick=purgeRelations()>Delete All Relations</button>
 </div>
 
 <div id="middleContent">
   <div id="sqlQuery">
     <textarea id="sqlText" rows=4 cols=50>
-SELECT S.sname
-FROM Sailors AS S
-WHERE S.sid IN ( SELECT R.sid
-                 FROM Reserve AS R
-                 WHERE R.bid = 103)
+        SELECT S.sname
+        FROM Sailors AS S
+        WHERE S.sid IN ( SELECT R.sid
+        FROM Reserve AS R
+        WHERE R.bid = 103)
 </textarea>
     <button id=submit type=submit onclick=startParse()>submit</button>
   </div>
@@ -46,13 +45,16 @@ WHERE S.sid IN ( SELECT R.sid
      I got the file(s) from.
  -->
 <!-- Got the jquery file directly from the download link at https://jquery.com/download/ -->
-<script language="javascript" src="js/jquery-1.11.3.min.js"></script>
-<!-- Created By codeschool: Main Code from https://github.com/codeschool/sqlite-parser -->
-<script language="javascript" src="js/sqlite-parser-min.js"></script>
-<!-- Created By camilojd: Main Code from https://github.com/camilojd/sequeljs-->
-<script language="javascript" src="js/parser/SqlParser.js"></script>
-<script language="javascript" src="js/parser/SqlPrettyPrinter.js"></script>
+<script language="javascript" src="./js/jquery-1.11.3.min.js"></script>
+    
+<!-- Created By camilojd: Main Code from https://github.com/camilojd/sequeljs -->
+<script language="javascript" src="./js/parser/SqlParser.js"></script>
+<script language="javascript" src="./js/parser/SqlPrettyPrinter.js"></script>
 <!-- My own scripts -->
-<script language="javascript" src="js/index.js"></script>
+
+    
+    <script language="javascript" src="./js/parseSimpleSQl.js"></script>
+    <script language="javascript" src="./js/parseNestedSql.js"></script>
+    <script language="javascript" src="./js/hope.js"></script>
 </footer>
 </html>
