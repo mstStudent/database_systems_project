@@ -15,9 +15,15 @@ var simpleConvert = function (sqlJson, where) {
             };
             $.each(sqlJson.columns, function (index, column) {
                 relat['project'].conditions[index] = simpleConvert(column);
+                var tempCheck = relat['project'].conditions[index]
+                if(checkIfRenamed(tempCheck.selCondition, tempCheck.selCondition.slice(tempCheck.selCondition.indexOf('.')+1)).found == false)
+                    throw 'Error ' + tempCheck.selCondition +' doesn\'t exist' 
             });
             $.each(sqlJson.from, function (index, fromStatement) {
                 relat['from'].conditions[index] = simpleConvert(fromStatement);
+                var tempCheck = relat['from'].conditions[index].tableName
+                if (checkTables(tempCheck)== false)
+                    throw 'Error ' + tempCheck + ' doesn\'t exist'
             });
             relat.select.conditions = simpleConvert(sqlJson.where, 1);
             return relat;
@@ -322,9 +328,9 @@ var updateTree = function (source) {
 
 var treeNode = function(details){
     return {
-        'name': details.name || null,
+        'name': details.name || '',
         'symbol': details.symbol || null,
-        'details': details.details || null,
+        'details': details.details || '',
         'parent': details.parent || null,
         'children': details.children || []
     
@@ -363,11 +369,6 @@ var createSimpleTree = function(jsonItem){
     })
 
     main.children.push(selectNode)
-
-    $.each(jsonItem.from, function (index, itemFrom) {
-
-    })
-
 
     var treeLayout = [main]
 

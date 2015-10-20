@@ -99,10 +99,19 @@ var checkIfAttriExistsWithoutRenamedTable = function (attribute, relationList) {
 
 var checkIfRenamed = function (possibleRenamedItems, nameToCheck) {
     var found = { found: false, realTableName: null };
-    $.each(possibleRenamedItems, function (index, nameCheck) {
-        if (nameCheck.rename.to == nameToCheck)
-            found = { found: true, realTableName: nameCheck.relationName };
-    })
+    if (typeof (possibleRenamedItems) == 'string') {
+        $.each(relations, function (index, nameCheck) {
+            $.each(nameCheck.columns, function (index, attri) {
+                if (attri.name == nameToCheck)
+                    found = { found: true, realTableName: nameCheck.relationName };
+            })
+        })
+    } else {
+        $.each(possibleRenamedItems, function (index, nameCheck) {
+            if (nameCheck.rename.to == nameToCheck)
+                found = { found: true, realTableName: nameCheck.relationName };
+        })
+    }
     return found
 }
 
@@ -210,13 +219,14 @@ var checkWithParser = function (sql) {
     };
     return relationJson;
     }
-    try{
-        return startParsingJSON(sqlJson);
+    try {
+        return  startParsingJSON(sqlJson);
     } catch (error) {
-        relationJson = {
+        return {
             type: 'error',
             message: error
         };
+        
     }
 }
 
