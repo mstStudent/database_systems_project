@@ -23,7 +23,13 @@ var simpleConvert = function (sqlJson, where) {
             return relat;
             break;
         case 'Column':
-            return simpleConvert(sqlJson.value);
+            if (sqlJson.alias != null) {
+                return {
+                    alias: sqlJson.alias.value,
+                    column: simpleConvert(sqlJson.value)
+                }
+            } else
+               return simpleConvert(sqlJson.value);
             break;
         case 'AndCondition':
             if (where == 1) {
@@ -110,10 +116,14 @@ var simpleConvert = function (sqlJson, where) {
                 'operator': sqlJson.op,
                 'conditions': simpleConvert(sqlJson.value)
             }
+            break;
+        case 'FunctionCall':
+            return sqlJson
+            break;
         default:
             if (typeof (sqlJson) == 'object') {
                 if (sqlJson.length > 1) {
-                    console.log('rewrite a little (simple parse)')
+                    console.log('Unexpected error (simple parse)')
                 } else {
                     return simpleConvert(sqlJson[0])
                 }
@@ -134,6 +144,11 @@ var goThroughSelect = function (select) {
         }
         if (select.right != null) {
             message = message + goThroughSelect(select.right)
+        }
+        if (select.length > 1) {
+            $.each(select, function (index, item) {
+                message = message + goThroughSelect(item);
+            })
         }
     } else {
         switch (select.operator) {
@@ -187,9 +202,23 @@ var printSimpleQuery = function (relation) {
 
         var proSection = pro.symbol + '<sub> ';
         $.each(pro.conditions, function (index, attr) {
-            proSection = proSection + attr.selCondition;
-            if (index + 1 != pro.conditions.length)
-                proSection = proSection + ', ';
+            if (attr.nodeType == 'FunctionCall') {
+                proSection = proSection + '(' + attr.name + ' (';
+                $.each(attr.args, function (index, arg) {
+                    proSection = proSection + arg;
+                })
+                proSection = proSection +') ';
+            } else if (attr.alias != null) {
+                proSection = proSection + "&rho;" + attr.alias + '(' + attr.column.name + ' (';
+                $.each(attr.column.args, function (index, arg) {
+                    proSection = proSection + arg;
+                })
+                proSection = proSection + ')) ';
+            }else {
+                proSection = proSection + attr.selCondition;
+                if (index + 1 != pro.conditions.length)
+                    proSection = proSection + ', ';
+            }
         })
         proSection = proSection + '</sub> '
 
@@ -210,4 +239,150 @@ var printSimpleQuery = function (relation) {
         var selSection = goThroughSelect(sel.conditions);
     }
     return proSection + sel.symbol + '<sub> ' + selSection + '</sub> ' + fromSection;
+}
+
+
+var margin = { top: 20, right: 120, bottom: 20, left: 120 },
+width = 960 - margin.right - margin.left,
+height = 500 - margin.top - margin.bottom;
+
+var i = 0;
+
+var tree = d3.layout.tree()
+ .size([height, width]);
+
+var diagonal = d3.svg.diagonal()
+ .projection(function (d) { return [d.y, d.x]; });
+
+var svg = d3.select("#tree").append("svg")
+ .attr("width", width + margin.right + margin.left)
+ .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+ .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+var updateTree = function (source) {    
+
+    root = source;
+
+    // Compute the new tree layout.
+    var nodes = tree.nodes(root).reverse(),
+     links = tree.links(nodes);
+
+    // Normalize for fixed-depth.
+    nodes.forEach(function (d) { d.y = d.depth * 180; });
+
+    // Declare the nodes
+    var node = svg.selectAll("g.node")
+     .data(nodes, function (d) { return d.id || (d.id = ++i); });
+
+    // Enter the nodes.
+    var nodeEnter = node.enter().append("g")
+     .attr("class", "node")
+     .attr("transform", function (d) {
+         return "translate(" + d.y + "," + d.x + ")";
+     });
+
+    nodeEnter.append("circle")
+     .attr("r", 10)
+     .style("fill", "#fff");
+
+    nodeEnter.append("text")
+     .attr("x", function (d) {
+         return d.children || d._children ? -13 : 13;
+     })
+     .attr("dy", ".35em")
+     .attr("text-anchor", function (d) {
+         return d.children || d._children ? "end" : "start";
+     })
+     .html(function (d) { return d.symbol; })
+     .style("fill-opacity", 1);
+
+    nodeEnter.append("text")
+     .attr("x", function (d) {
+         return d.children || d._children ? -13 : 13;
+     })
+     .attr("dy", "2em")
+     .attr("text-anchor", function (d) {
+         return d.children || d._children ? "end" : "start";
+     })
+     .html(function (d) { return d.details; })
+     .style("fill-opacity", 1);
+
+    // Declare the links
+    var link = svg.selectAll("path.link")
+     .data(links, function (d) { return d.target.id; });
+
+    // Enter the links.
+    link.enter().insert("path", "g")
+     .attr("class", "link")
+     .attr("d", diagonal);
+
+}
+
+var treeNode = function(details){
+    return {
+        'name': details.name || null,
+        'symbol': details.symbol || null,
+        'details': details.details || null,
+        'parent': details.parent || null,
+        'children': details.children || []
+    
+    }
+}
+
+var createSimpleTree = function(jsonItem){
+    console.log(jsonItem);
+    var main = treeNode({
+        'name': 'root',
+        "symbol": jsonItem.project.symbol,
+        "details": '',
+        "parent": null,
+        "children": []
+    })
+
+    $.each(jsonItem.project.conditions, function (index, item) {
+        main.details = main.details + item.selCondition;
+        if (index + 1 != jsonItem.project.conditions.length) {
+            main.details = main.details + ', '
+        }
+    })
+
+    var selectNode = treeNode({
+        'name': 'select',
+        "symbol": jsonItem.project.symbol,
+        "details": '',
+        "parent": 'root',
+        "children": []
+    })
+    $.each(jsonItem.select.conditions.conditions, function (index, item) {
+        selectNode.details = selectNode.details + item.left.selCondition + ' ' + item.operator + ' ' + item.right.conditions.selCondition;
+        if (index + 1 != jsonItem.select.conditions.conditions.length) {
+            selectNode.details = selectNode.details + ' ' + jsonItem.select.conditions.symbol + ' '
+        }
+    })
+
+    $.each(jsonItem.from, function (index, itemFrom) {
+
+    })
+
+
+    var treeLayout = [{
+        'name': 'root',
+        "symbol": jsonItem.project.symbol,
+        "details": mainName,
+        "parent": null,
+        "children": [
+            {
+                "name": 'child1',
+                "details": selectDetails,
+                "symbol": jsonItem.select.symbol,
+                "parent": 'root'
+            }
+        ]
+    }]
+
+ 
+
+    updateTree(treeLayout[0]);
 }

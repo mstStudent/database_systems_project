@@ -18,10 +18,8 @@
   <div id="sqlQuery">
     <textarea id="sqlText" rows=4 cols=50>
         SELECT S.sname
-        FROM Sailors AS S
-        WHERE S.sid IN ( SELECT R.sid
-        FROM Reserve AS R
-        WHERE R.bid = 103)
+        FROM Sailors AS S, Reserves AS R
+        WHERE S.sid=R.sid AND R.bid=103
 </textarea>
     <button id=submit type=submit onclick=startParse()>submit</button>
   </div>
@@ -29,6 +27,10 @@
   <div>
     	<h2 id="sqlResults"></h2>
   </div>
+
+    <div id="tree">
+
+    </div>
 </div>
 
 <div id='rightMenu'>
@@ -37,6 +39,7 @@
   </dl>
   <button id=submit type=submit onclick=purgeViews()>Delete All Views</button>
 </div>
+
 </body>
 <footer>
 
@@ -50,11 +53,16 @@
 <!-- Created By camilojd: Main Code from https://github.com/camilojd/sequeljs -->
 <script language="javascript" src="./js/parser/SqlParser.js"></script>
 <script language="javascript" src="./js/parser/SqlPrettyPrinter.js"></script>
-<!-- My own scripts -->
 
+<!-- Created By the 'D3' repo of mbostock from https://github.com/mbostock/d3 -->
+<script language="javascript" src="./js/d3.min.js"></script>
+<!-- My own scripts -->
+    
     
     <script language="javascript" src="./js/parseSimpleSQl.js"></script>
     <script language="javascript" src="./js/parseNestedSql.js"></script>
+    <script language="javascript" src="./js/parseComplex.js"></script>
+    <script language="javascript" src="./js/groupHavingSql.js"></script>
     <script language="javascript" src="./js/hope.js"></script>
 </footer>
 </html>

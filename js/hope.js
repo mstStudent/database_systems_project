@@ -326,15 +326,25 @@ var startParsingJSON = function (sqlJson) {
     }
 
     if (quickCount == 1) {
-        if (sqlJson.groupBy == null && sqlJson.having == null) {
+        if (sqlJson.value[0].groupBy == null && sqlJson.value[0].having == null) {
             result.type = 'simple'
             result.relationJson = simpleConvert(sqlJson);
         } else {
-            console.log('Write simple select with group by and/or having')
+            result.type = 'havingGroup'
+            result.relationJson = sortGroupExpression(sqlJson);
         }
 
     } else if (sqlJson.value.length > 1) {
-        console.log('Add union, intersect, ect. code')
+ 
+        var transFirst = startParsingJSON(sqlJson.value[0]);
+        var op = sqlJson.value[1];
+        var transSecond = startParsingJSON(sqlJson.value[2]);
+        result = {
+            first: transFirst,
+            op: op,
+            second: transSecond,
+            type: 'complex'
+        }
     } else {
         result.type = 'nested'
         var preRec = getSelAndProj(sqlJson.value[0].columns, sqlJson.value[0].from);
@@ -383,8 +393,6 @@ var checkWithParser = function (sql) {
     return startParsingJSON(sqlJson);
 }
 
-
-
 var startParse = function(){ 
     var query = $("#sqlText").val();
     
@@ -398,13 +406,22 @@ var startParse = function(){
     switch (action.type) {
         case 'simple':
             $('#sqlResults').html(printSimpleQuery(action.relationJson[0]));
+            createSimpleTree(action.relationJson[0]);
             break;
         case 'nested':
-            $('#sqlResults').html(printNestedQuery(action.relationJson));
+            var firstPart = printNestedQuery(action.relationJson);
+            var secondPart = printSimpleQuery(action.relationJson.right.relationJson)
+            //console.log(secondPart)
+            $('#sqlResults').html(firstPart + ' ' + secondPart);
+            break;
+        case 'complex':
+            $('#sqlResults').html(printComplexQuery(action))
+            break;
+        case 'havingGroup':
+            $('#sqlResults').html(printGroupQuery(action.relationJson))
             break;
         default:
             console.log("forgot (end): ", action)
     }
-    
 
 }

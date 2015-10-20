@@ -23,7 +23,7 @@ WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color=’gre
 
 SELECT S.sname
 FROM Sailors AS S, Reserves AS R
-WHERE R.sid = S.sid AND R.bid = 100 AND S.rating > 5 AND R.day = ‘8/9/09’
+WHERE R.sid = S.sid AND R.bid = 100 AND S.rating > 5 AND R.day = '8/9/09’
 
 SELECT sname
 FROM Sailors, Boats, Reserves
@@ -35,11 +35,11 @@ WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color=’gre
 
 SELECT S.sid
 FROM Sailors AS S, Reserves AS R, Boats AS B
-WHERE S.sid=R.sid AND R.bid=B.bid AND B.color=‘red’
+WHERE S.sid=R.sid AND R.bid=B.bid AND B.color='red’
 EXCEPT
 SELECT S2.sid
 FROM Sailors AS S2, Reserves AS R2, Boats AS B2
-WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B.2color=‘green’
+WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B.2color='green’
 
 SELECT S.sname
 FROM Sailors AS S
@@ -51,11 +51,11 @@ SELECT S.sname
 FROM Sailors AS S
 WHERE S.sid IN ((SELECT R.sid
 		FROM Reserve AS R, Boats AS B
-		WHERE R.bid = B.bid AND B.color = ‘red’)
+		WHERE R.bid = B.bid AND B.color = 'red’)
 		INTERSECT
 		(SELECT R2.sid
 		FROM Reserve AS R2, Boats AS B2
-		WHERE R2.bid = B2.bid AND B2.color = ‘green’))
+		WHERE R2.bid = B2.bid AND B2.color = 'green’))
 
 */
 

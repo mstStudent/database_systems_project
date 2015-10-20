@@ -1,4 +1,4 @@
-var getSubQueries = function (whereSql) {
+﻿var getSubQueries = function (whereSql) {
     var leftSide = {
         extraConditionsBeforeSubQuery: [],
         attriForSub: null
@@ -12,7 +12,8 @@ var getSubQueries = function (whereSql) {
 
     var operator = {
         state: whereSql.value[0].right.nodeType,
-        op: whereSql.value[0].right.op
+        op: whereSql.value[0].right.op,
+        negate: whereSql.value[0].right.not,
     }
 
     var parseThis = whereSql.value[0].right.value
@@ -40,10 +41,17 @@ var getFromJSON = function (from) {
 
 var getSelectJson = function (select) {
     console.log('got sel: ', select)
-    return {
-        alias: select.alias == null ? null : select.alias.value,
-        name: select.value.value[0].value.value
-    }
+    if (select.value.value[0].value.nodeType != 'FunctionCall')
+        return {
+            alias: select.alias == null ? null : select.alias.value,
+            name: select.value.value[0].value.value
+        }
+    else
+        return {
+            alias: select.alias == null ? null : select.alias.value,
+            name: select.value.value[0].value.name,
+            args: select.value.value[0].value.args
+        }
 }
 
 var getSelAndProj = function (columns, sqlFrom) {
@@ -101,6 +109,7 @@ var checkForSubCompatiability = function (leftAttri, leftAttriTable, subQueryAtt
 var getExtraFrom = function (term, possibleTables) {
     var results = {
         alias: null,
+        aliasSymbol: "&rho;",
         tableName: null
     }
     $.each(possibleTables, function (index, tables) {
@@ -176,40 +185,39 @@ var sortExpression = function (preNest, nestedStuff) {
 }
 
 
+/*
 
+  'project': { 'symbol': '&Pi;', conditions: [] },
+  'select': { 'symbol': '&sigma;', conditions: null },
+  'from': { 'symbol': 'X', conditions: [] }
+
+*/
 
 var printNestedQuery = function (relation) {
-    var pro = relation.project;
-    var from = relation.from;
-    var sel = relation.select;
+    var projectPartStart = '&Pi; <sub>';
+    $.each(relation.left.sel, function (index, column) {
+        if (column.alias == null)
+            projectPartStart = projectPartStart + column.name;
+        else
+            projectPartStart = projectPartStart + column.alias + column.name;
+        if(index + 1 != relation.left.fro.length)
+            projectPartStart = projectPartStart + ' , '
+    });
+    projectPartStart = projectPartStart + '</sub>';
 
-    if (relation.type != null) {
-        return ' ' + relation.symbol + ' ';
-    } else {
+    var leftJoin = '&sigma; <sub>'
 
-        var proSection = pro.symbol + '<sub> ';
-        $.each(pro.conditions, function (index, attr) {
-            proSection = proSection + attr.selCondition;
-            if (index + 1 != pro.conditions.length)
-                proSection = proSection + ', ';
-        })
-        proSection = proSection + '</sub> '
+    $.each(relation.left.sel, function (index, table) {
+        if (table.alias == null)
+            leftJoin = leftJoin + table.name;
+        else
+            leftJoin = leftJoin + table.alias + table.name;
+        if (index + 1 != relation.left.sel.length)
+            leftJoin = leftJoin + ' , '
+    })
 
-        var fromSection = '(';
+    leftJoin = leftJoin + '</sub> ⋈ ';
+    
+    return projectPartStart + leftJoin;
 
-        $.each(from.conditions, function (index, rel) {
-            if (rel.alias != null) {
-                fromSection = fromSection + rel.aliasSymbol + '<sub>' + rel.alias + '</sub>' + '(' + rel.tableName + ') ';
-            } else {
-                fromSection = fromSection + rel.tableName + ' ';
-            }
-            if (index + 1 != from.conditions.length)
-                fromSection = fromSection + from.symbol + ' ';
-        })
-
-        fromSection = fromSection + ')'
-
-        var selSection = goThroughSelect(sel.conditions);
-    }
-    return proSection + sel.symbol + '<sub> ' + selSection + '</sub> ' + fromSection;
 }
