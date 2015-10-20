@@ -350,7 +350,7 @@ var createSimpleTree = function(jsonItem){
 
     var selectNode = treeNode({
         'name': 'select',
-        "symbol": jsonItem.project.symbol,
+        "symbol": jsonItem.select.symbol,
         "details": '',
         "parent": 'root',
         "children": []
@@ -362,25 +362,14 @@ var createSimpleTree = function(jsonItem){
         }
     })
 
+    main.children.push(selectNode)
+
     $.each(jsonItem.from, function (index, itemFrom) {
 
     })
 
 
-    var treeLayout = [{
-        'name': 'root',
-        "symbol": jsonItem.project.symbol,
-        "details": mainName,
-        "parent": null,
-        "children": [
-            {
-                "name": 'child1',
-                "details": selectDetails,
-                "symbol": jsonItem.select.symbol,
-                "parent": 'root'
-            }
-        ]
-    }]
+    var treeLayout = [main]
 
  
 

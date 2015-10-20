@@ -25,8 +25,6 @@ SELECT S.sname
 FROM Sailors AS S, Reserves AS R
 WHERE R.sid = S.sid AND R.bid = 100 AND S.rating > 5 AND R.day = '8/9/09'
 
-/// sqlite can't do this
-
 SELECT sname
 FROM Sailors, Boats, Reserves
 WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='red'
@@ -35,8 +33,6 @@ SELECT sname
 FROM Sailors, Boats, Reserves
 WHERE Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND Boats.color='green'
 
-/// WRONG!
-
 SELECT S.sid
 FROM Sailors AS S, Reserves AS R, Boats AS B
 WHERE S.sid=R.sid AND R.bid=B.bid AND B.color='red'
@@ -44,9 +40,6 @@ EXCEPT
 SELECT S2.sid
 FROM Sailors AS S2, Reserves AS R2, Boats AS B2
 WHERE S2.sid=R2.sid AND R2.bid=B2.bid AND B.2color='green'
-
-
-
 
 SELECT S.sid
 FROM Sailors AS S, Reserves AS R, Boats AS B
@@ -180,33 +173,31 @@ GROUP BY S.rating
 HAVING Count (*) > 1 
 
 
-'project':{ 'symbol': '&Pi;', conditions: []},
-'select': { 'symbol': '&sigma;', conditions: null},
-'from':   { 'symbol': 'X', conditions: []}
+
 
 */
 
 var relations = [
 			{
-				table: "Sailors",
-				columns: [
+			    table: "Sailors",
+			    columns: [
                     {
-				    name: 'sid',
-				    type: 'integer'
-    			    }, 
-                    { 
+                        name: 'sid',
+                        type: 'integer'
+                    },
+                    {
                         name: 'sname',
                         type: 'string'
-                    }, 
-                    { 
+                    },
+                    {
                         name: 'rating',
                         type: 'integer'
-                    }, 
-                    { 
+                    },
+                    {
                         name: 'age',
                         type: 'real'
                     }
-				]
+			    ]
 			},
             {
                 table: "Boats",
@@ -214,12 +205,12 @@ var relations = [
                     {
                         name: 'bid',
                         type: 'integer'
-                    }, 
-                    { 
+                    },
+                    {
                         name: 'bname',
                         type: 'string'
-                    }, 
-                    { 
+                    },
+                    {
                         name: 'color',
                         type: 'string'
                     }
@@ -231,20 +222,24 @@ var relations = [
                     {
                         name: 'sid',
                         type: 'integer'
-                    }, 
-                    { 
+                    },
+                    {
                         name: 'bid',
                         type: 'integer'
-                    }, 
-                    { 
+                    },
+                    {
                         name: 'day',
                         type: 'date'
                     }
                 ]
             }
-		    ];
+];
+
 		    
 var views = [];
+
+var relationalAlgebra = null;
+
 
 var checkTables = function (table) {
     var exists = false;
@@ -282,137 +277,151 @@ var checkIfAttriExistsWithoutRenamedTable = function (attribute, relationList) {
 }
 
 var checkIfRenamed = function (possibleRenamedItems, nameToCheck) {
-    var found = {found: false, realTableName: null};
+    var found = { found: false, realTableName: null };
     $.each(possibleRenamedItems, function (index, nameCheck) {
-        if(nameCheck.rename.to == nameToCheck)
+        if (nameCheck.rename.to == nameToCheck)
             found = { found: true, realTableName: nameCheck.relationName };
     })
     return found
 }
 
-var parseSelect = function (statement, possibleRenamedItems) {
-    var projectTempList = statement.slice(7).split(',');
+// It's assumed that there is at least 1 valid select statement
+var numSelects = 0;
 
-    // Basic syntax check
-    $.each(projectTempList, function (index, attribute) {
-        if (attribute.indexOf('.') > -1) {
-            var renamedItemCheck = attribute.trim().split('.');
-            var renameCheck = checkIfRenamed(possibleRenamedItems, renamedItemCheck[0]);
-            if (renameCheck.found == false) {
-                if (checkTables(renamedItemCheck[0]) == false) {
-                    throw 'Can\'t find relation ' + renamedItemCheck[0];
-                }
-            }else{
-             console.log("Found: ", renamedItemCheck);
-             if (checkTablesAttributes(renameCheck.realTableName, renamedItemCheck[1]) == false) {
-                 throw 'Can\'t find attribute ' + renamedItemCheck[1] + ' in ' + renameCheck.realTableName;
-             }
-            }
-        } else {
-            console.log("does not have a .")
-            if (checkIfAttriExistsWithoutRenamedTable(attribute, possibleRenamedItems) == false) {
-                throw 'Can\'t find attribute ' + attribute;
-            }
+var countSelects = function (sql) {
+    if (sql.nodeType != undefined) {
+        if (sql.nodeType == 'Select') {
+            numSelects = numSelects + 1;
+            countSelects(sql.where);
         }
-    })
-/*
-    console.log('projectTempList: ', projectTempList)
-    console.log('project: ', statement)
-    console.log('possibleRenamedItems: ', possibleRenamedItems)
-*/
-    var project = {
-        conditions: projectTempList,
-        symbol: '&Pi;'
+        else if (sql.nodeType == 'BinaryCondition' || sql.nodeType == 'OrCondition') {
+            countSelects(sql.left);
+            countSelects(sql.right);
+        }
+        else if (sql.nodeType == 'Term' || sql.nodeType == 'SetOperator')
+            if (typeof (sql.value) == 'object')
+                countSelects(sql.value)
+            else
+              return
+        else
+            countSelects(sql.value);
+    } else {
+       $.each(sql, function (index, check) {
+           countSelects(check)
+       })        
     }
-    return project;
 }
 
-var parseFrom = function(statement){
-    var relationTempList = statement.slice(5).split(',');
-    var relationArray = [];
-    $.each(relationTempList, function (index, relationString) {
-        var relation = {
-            rename: {
-                rename: false,
-                to: null
-            },
-            relationName: null
+var startParsingJSON = function (sqlJson) {
+    countSelects(sqlJson);
+
+    var quickCount = numSelects;
+    numSelects = 0;
+
+    console.log("quickCount: ", quickCount);
+
+    var result = {
+        type: null,
+        relationJson: null
+    }
+
+    if (quickCount == 1) {
+        if (sqlJson.value[0].groupBy == null && sqlJson.value[0].having == null) {
+            result.type = 'simple'
+            result.relationJson = simpleConvert(sqlJson);
+        } else {
+            result.type = 'havingGroup'
+            result.relationJson = sortGroupExpression(sqlJson);
         }
-        var splitUp = relationString.trim().split(' ');
-        if (checkTables(splitUp[0]) == false)
-            throw 'Error relation ' + relationCheck.relationName + ' does not exist!'
-        relation.relationName = splitUp[0];
-        if(splitUp.length > 1){
-            relation.rename.rename = true;
-            relation.rename.to = splitUp[splitUp.length - 1];
+
+    } else if (sqlJson.value.length > 1) {
+ 
+        var transFirst = startParsingJSON(sqlJson.value[0]);
+        var op = sqlJson.value[1];
+        var transSecond = startParsingJSON(sqlJson.value[2]);
+        result = {
+            first: transFirst,
+            op: op,
+            second: transSecond,
+            type: 'complex'
         }
-        relationArray.push(relation)
-    })
-    /*
-    console.log('relationTempList: ', relationTempList);
-    console.log('relationList: ', relationArray);
-    */
-    return relationArray
+    } else {
+        result.type = 'nested'
+        var preRec = getSelAndProj(sqlJson.value[0].columns, sqlJson.value[0].from);
+        var inner = getSubQueries(sqlJson.value[0].where);
+        inner['rightParsed'] = null;
+  //      console.log("preRec: ", preRec)
+  //      console.log('inner: ', inner)
+        inner.rightParsed = startParsingJSON(inner.right)
+        //console.log('inner: ', inner)
+        var update = sortExpression(preRec, inner);
+        console.log('update', update)
+        result.relationJson = {
+            left: preRec,
+            right: update
+        }
+    }
+
+    return result;
+
+}
+
+var checkWithParser = function (sql) {
+    var relationJson = null;
+    try{
+        var sqlJson = parser.parse(sql);
+        console.log('start: ' , sqlJson)
+    }catch(error){
+    errorString = String(error);
     
-}
-
-var parseWhere = function (statement) {
-    whereStatement = statement.slice(6).split(' ');
+    console.log("ERROR! :"  , error );
+    errorString = errorString.slice(errorString.indexOf('...') + 4);
+    dashes = errorString.indexOf('-');
+    carror = errorString.indexOf('^') - 5;
+    tim = carror - dashes + 1
+    er = errorString.slice(0,dashes) + '<br></br>' + '-----' + errorString.slice(dashes)
+    test = errorString.slice(0,tim) + '<span style = "color:red">' + errorString.slice(tim,tim+1) + '</span>' + errorString.slice(tim+1,dashes-1);
+    test = test + '<br></br> The start of the problem is highlighted in red.'
     
-    console.log('Got (where) : ', statement);
-    console.log('Sliced result: ', whereStatement);
+    relationJson =  {
+            action: 'error',
+            type: 'Syntax Issue',
+            message: test
+        };
+    }
 
-    simpleOperators = ['=', '>', '<', '!=', '<>']
-    $.each(whereStatement, function (super_index, section) {
-        $.each(simpleOperators, function (index, oper) {
-            if (section.indexOf(oper) > -1) {
-                var splitUp = section.split(oper);
-                whereStatement[super_index] = {
-                    left: splitUp[0],
-                    op: oper,
-                    right: splitUp[1]
-                }
-            }
-        })
-    })
-
-}
-
-var parseQuery = function (query) {
-    var selectSection = query.slice(0, query.toLowerCase().indexOf('from'));
-    var fromSection = query.slice(selectSection.length, query.toLowerCase().indexOf('where'));
-    var whereSection = query.slice(selectSection.length + fromSection.length);
-
-    selectSection = selectSection.trim();
-    fromSection = fromSection.trim();
-    whereSection = whereSection.trim();
-
-
-    console.log("start: ", query);
-    console.log("select: ", selectSection);
-    console.log("from: ", fromSection);
-    console.log('where: ', whereSection);
-
-    //try {
-        // To help me track where I got the relations from I'm just labeling the variables after the part of the query they came from
-        var from = parseFrom(fromSection);
-        var select = parseSelect(selectSection, from);
-        var where = parseWhere(whereSection);
-        console.log(select)
-        console.log(from)
-        return {
-            'select': select,
-            'from': from,
-            'where': where
-        }
-    //} catch (error) {
-     //   $("#sqlResults").html(error);
-    //}
+    return startParsingJSON(sqlJson);
 }
 
 var startParse = function(){ 
     var query = $("#sqlText").val();
-    // remove whitespace before and after input
-    query = query.trim();
-    parseQuery(query);
+    
+    // Remove the last ; from the sql statement, if the user enters several commands and separates them with a ; then we'll handle it shortly.
+    if(query.slice(-1) == ';'){
+        query = query.slice(0,-1)
+    }
+
+    action = checkWithParser(query);
+    console.log("Before Switch Case: ", action);
+    switch (action.type) {
+        case 'simple':
+            $('#sqlResults').html(printSimpleQuery(action.relationJson[0]));
+            createSimpleTree(action.relationJson[0]);
+            break;
+        case 'nested':
+            var firstPart = printNestedQuery(action.relationJson);
+            var secondPart = printSimpleQuery(action.relationJson.right.relationJson)
+            //console.log(secondPart)
+            $('#sqlResults').html(firstPart + ' ' + secondPart);
+            break;
+        case 'complex':
+            $('#sqlResults').html(printComplexQuery(action))
+            break;
+        case 'havingGroup':
+            $('#sqlResults').html(printGroupQuery(action.relationJson))
+            break;
+        default:
+            console.log("forgot (end): ", action)
+    }
+
 }
