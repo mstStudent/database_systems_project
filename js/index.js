@@ -205,13 +205,19 @@ var checkWithParser = function (sql) {
     test = test + '<br></br> The start of the problem is highlighted in red.'
     
     relationJson =  {
-            action: 'error',
-            type: 'Syntax Issue',
+            type: 'error',
             message: test
+    };
+    return relationJson;
+    }
+    try{
+        return startParsingJSON(sqlJson);
+    } catch (error) {
+        relationJson = {
+            type: 'error',
+            message: error
         };
     }
-
-    return startParsingJSON(sqlJson);
 }
 
 var startParse = function(){ 
@@ -240,6 +246,9 @@ var startParse = function(){
             break;
         case 'havingGroup':
             $('#sqlResults').html(printGroupQuery(action.relationJson))
+            break;
+        case 'error':
+            $('#sqlResults').html(action.message)
             break;
         default:
             console.log("forgot (end): ", action)
