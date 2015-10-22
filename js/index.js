@@ -155,8 +155,14 @@ var startParsingJSON = function (sqlJson) {
         relationJson: null
     }
 
+    var useThis= null;
     if (quickCount == 1) {
-        if (sqlJson.value[0].groupBy == null && sqlJson.value[0].having == null) {
+     if(sqlJson.value!=null){
+       useThis = sqlJson.value[0]
+     }else{
+       useThis = sqlJson
+     }
+        if (useThis.groupBy == null && useThis.having == null) {
             result.type = 'simple'
             result.relationJson = simpleConvert(sqlJson);
         } else {
