@@ -143,8 +143,28 @@ var countSelects = function (sql) {
 }
 
 var startParsingJSON = function (sqlJson) {
+    
+    if(sqlJson.length > 1){
+       $.each(sqlJson, function(index, sql){
+       countSelects(sql);
+    
+       var quickCount = numSelects;
+       numSelects = 0;
+       
+       if(quickCount > 1)
+          return startParsingJSON(sql)
+       else
+       try{
+          return simpleConvert(sql)
+          }catch(error){
+           return sqlJson.value
+          }
+          
+       })
+    }
+    
     countSelects(sqlJson);
-
+    
     var quickCount = numSelects;
     numSelects = 0;
 

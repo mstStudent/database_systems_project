@@ -1,4 +1,7 @@
 var simpleConvert = function (sqlJson, where) {
+    if(sqlJson == null){
+      return null
+    }    
     switch (sqlJson.nodeType) {
         case 'Main':
             var message = {};

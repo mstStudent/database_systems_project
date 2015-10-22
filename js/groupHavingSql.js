@@ -1,4 +1,4 @@
-var sortGroupExpression = function (sqlJson) {
+var sortGroupExpression = function (sqlJson, have, groupby) {
     console.log("GROUP : ", sqlJson);
 
     var proandFro = getSelAndProj(sqlJson.value[0].columns, sqlJson.value[0].from);
@@ -9,12 +9,19 @@ var sortGroupExpression = function (sqlJson) {
         symbol: '&sigma;',
         condition: simpleConvert(sqlJson.value[0].having)
     }
+    
+    if(having.condition == null){
+      having = null;
+    }
 
     var grouping = {
         symbol: '&gamma;',
         condition: simpleConvert(sqlJson.value[0].groupBy)
     }
 
+if(grouping.condition == null){
+      grouping = null;
+    }
 
     var aggrigated = [];
 
